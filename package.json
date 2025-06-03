@@ -1,0 +1,16 @@
+{
+  "name": "explocode",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Experiment and learning code collection",
+  "workspaces": [
+    "koa-demo"
+  ],
+  "scripts": {
+    "koa": "node koa-demo/app.js",
+    "cd": "node scripts/git-commit-date.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
