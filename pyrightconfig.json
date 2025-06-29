@@ -1,0 +1,9 @@
+{
+  "venvPath": "fastapi-demo",
+  "venv": ".venv",
+  "extraPaths": [
+    "fastapi-demo/services/a",
+    "fastapi-demo/services/user-service",
+    "fastapi-demo/services/order-service"
+  ]
+}
