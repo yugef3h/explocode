@@ -1,11 +1,12 @@
-# FastAPI 双服务微服务示例
+# FastAPI 微服务示例
 
-两个独立 FastAPI 服务，演示服务间 HTTP 调用：
+多个独立 FastAPI 服务，演示服务间 HTTP 调用：
 
 | 服务 | 端口 | 职责 |
 |------|------|------|
 | `user-service` | 8001 | 用户查询 |
 | `order-service` | 8002 | 订单管理，创建订单时校验用户 |
+| `a` | 8003 | 自定义服务（在 `services/a` 中开发） |
 
 ## 本地开发
 
@@ -27,6 +28,7 @@ USER_SERVICE_URL=http://127.0.0.1:8001 uvicorn app.main:app --reload --port 8002
 make install
 make dev-user    # 终端 1
 make dev-order   # 终端 2
+make dev-a       # 终端 3
 ```
 
 ## Docker Compose
@@ -37,6 +39,7 @@ docker compose up --build
 
 - User API: http://localhost:8001/docs
 - Order API: http://localhost:8002/docs
+- A API: http://localhost:8003/docs
 
 ## 快速验证
 

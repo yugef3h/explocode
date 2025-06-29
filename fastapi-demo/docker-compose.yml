@@ -15,3 +15,10 @@ services:
       USER_SERVICE_URL: http://user-service:8001
     depends_on:
       - user-service
+
+  a-service:
+    build: ./services/a
+    ports:
+      - "8003:8003"
+    environment:
+      A_SERVICE_PORT: "8003"
