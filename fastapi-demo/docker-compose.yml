@@ -20,5 +20,8 @@ services:
     build: ./services/a
     ports:
       - "8003:8003"
+    env_file:
+      - .env
     environment:
       A_SERVICE_PORT: "8003"
+      REDIS_OM_URL: ${REDIS_OM_URL}
