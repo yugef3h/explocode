@@ -33,8 +33,19 @@ make dev-a       # 终端 3
 
 ## Docker Compose
 
+在 `fastapi-demo/.env` 中配置 `REDIS_OM_URL`（a-service 连接 Redis Cloud 用），可参考 `.env.example`：
+
 ```bash
+cp .env.example .env   # 首次使用
+# 编辑 .env，填入 REDIS_OM_URL
+
 docker compose up --build
+```
+
+从仓库根目录也可：
+
+```bash
+pnpm fastapi:up
 ```
 
 - User API: http://localhost:8001/docs
