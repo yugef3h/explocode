@@ -1,5 +1,6 @@
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/fastapi-demo/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
   "python.analysis.venvPath": "${workspaceFolder}/fastapi-demo",
   "python.analysis.venv": ".venv",
   "python.analysis.extraPaths": [
