@@ -13,7 +13,7 @@
     "fastapi:a": "fastapi-demo/.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8003 --app-dir fastapi-demo/services/a",
     "fastapi:user": "fastapi-demo/.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8001 --app-dir fastapi-demo/services/user-service",
     "fastapi:order": "USER_SERVICE_URL=http://127.0.0.1:8001 fastapi-demo/.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8002 --app-dir fastapi-demo/services/order-service",
-    "fastapi:up": "docker compose -f fastapi-demo/docker-compose.yml up --build"
+    "fastapi:up": "docker compose --project-directory fastapi-demo -f fastapi-demo/docker-compose.yml up --build"
   },
   "keywords": [],
   "author": "",
