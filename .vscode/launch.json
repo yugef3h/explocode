@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FastAPI: a-service",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--reload",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8003",
+        "--app-dir",
+        "${workspaceFolder}/fastapi-demo/services/a"
+      ],
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/fastapi-demo/.venv/bin/python",
+      "console": "integratedTerminal"
+    }
+  ]
+}
