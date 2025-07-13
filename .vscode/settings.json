@@ -3,9 +3,5 @@
   "python.terminal.activateEnvironment": true,
   "python.analysis.venvPath": "${workspaceFolder}/fastapi-demo",
   "python.analysis.venv": ".venv",
-  "python.analysis.extraPaths": [
-    "${workspaceFolder}/fastapi-demo/services/a",
-    "${workspaceFolder}/fastapi-demo/services/user-service",
-    "${workspaceFolder}/fastapi-demo/services/order-service"
-  ]
+  "python.analysis.diagnosticMode": "workspace"
 }
