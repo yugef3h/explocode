@@ -5,8 +5,8 @@ from pydantic import BaseModel, Field
 
 class OrderCreate(BaseModel):
     user_id: int = Field(ge=1)
-    item: str = Field(min_length=1, max_length=128)
-    amount: float = Field(gt=0)
+    product_id: str = Field(min_length=1)
+    quantity: int = Field(default=1, ge=1)
 
 
 class OrderUpdate(BaseModel):
@@ -18,5 +18,8 @@ class OrderUpdate(BaseModel):
 class OrderOut(BaseModel):
     id: str
     user_id: int
+    product_id: str
     item: str
     amount: float
+    quantity: int
+    status: str
