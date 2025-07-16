@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     order_service_port: int = 8002
     user_service_url: str = "http://127.0.0.1:8001"
+    a_service_url: str = "http://127.0.0.1:8003"
     redis_om_url: str = "redis://localhost:6379"
 
 
