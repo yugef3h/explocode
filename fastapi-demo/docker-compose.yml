@@ -15,9 +15,11 @@ services:
     environment:
       ORDER_SERVICE_PORT: "8002"
       USER_SERVICE_URL: http://user-service:8001
+      A_SERVICE_URL: http://a-service:8003
       REDIS_OM_URL: ${REDIS_OM_URL}
     depends_on:
       - user-service
+      - a-service
 
   a-service:
     build: ./services/a
