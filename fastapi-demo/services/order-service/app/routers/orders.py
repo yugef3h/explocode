@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 from app.clients.product_client import get_product
 from app.clients.user_client import get_user
 from app.models import ORDER_STATUS_COMPLETED, Order
+from app.redis_client import get_redis
 from app.schemas import OrderCreate, OrderOut, OrderUpdate
 from redis_om import NotFoundError
 
@@ -19,6 +20,8 @@ async def _complete_order_later(order_pk: str) -> None:
         return
     order.status = ORDER_STATUS_COMPLETED
     order.save()
+    fields = {key: str(value) for key, value in order.model_dump().items() if value is not None}
+    get_redis().xadd("order_completed", fields)
 
 
 def _to_out(order: Order) -> OrderOut:
