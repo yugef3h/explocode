@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from redis_om import NotFoundError, get_redis_connection
+from redis_om import NotFoundError
 
 from app.config import settings
+from app.redis_client import get_redis
 from app.routers import orders
 
 os.environ.setdefault("REDIS_OM_URL", settings.redis_om_url)
@@ -13,7 +14,7 @@ os.environ.setdefault("REDIS_OM_URL", settings.redis_om_url)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    redis_client = get_redis_connection(url=settings.redis_om_url)
+    redis_client = get_redis()
     redis_client.ping()
     app.state.redis = redis_client
     yield
