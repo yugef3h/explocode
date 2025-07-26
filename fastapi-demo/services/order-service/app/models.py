@@ -2,6 +2,7 @@ from redis_om import HashModel
 
 ORDER_STATUS_PENDING = "pending"
 ORDER_STATUS_COMPLETED = "completed"
+ORDER_STATUS_REFUNDED = "refunded"
 
 
 class Order(HashModel):
