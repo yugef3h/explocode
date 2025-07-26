@@ -28,6 +28,7 @@ def _ensure_consumer_group(redis) -> None:
 
 
 def _handle_message(fields: dict) -> None:
+    # items 把字典转成元组
     decoded = {_decode(k): _decode(v) for k, v in fields.items()}
     product_id = decoded.get("product_id")
     quantity = int(decoded.get("quantity", 0))
@@ -66,7 +67,7 @@ def run_consumer(stop_event: Event) -> None:
 
     while not stop_event.is_set():
         try:
-            messages = redis.xreadgroup(
+            messages: list[tuple[str, list[tuple[str, dict]]]] = redis.xreadgroup(
                 GROUP_NAME,
                 CONSUMER_NAME,
                 {STREAM_KEY: ">"},
