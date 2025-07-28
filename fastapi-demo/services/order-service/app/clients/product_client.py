@@ -7,7 +7,7 @@ from app.config import settings
 async def get_product(product_id: str) -> dict:
     url = f"{settings.a_service_url.rstrip('/')}/products/{product_id}"
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
             response = await client.get(url)
     except httpx.RequestError as exc:
         raise HTTPException(
