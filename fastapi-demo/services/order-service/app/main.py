@@ -1,15 +1,22 @@
+import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from redis_om import NotFoundError
 
 from app.config import settings
+
+os.environ["REDIS_OM_URL"] = settings.redis_om_url
+
+from redis_om import NotFoundError
+
+from app.consumer import run_consumer
 from app.redis_client import get_redis
 from app.routers import orders
 
-os.environ.setdefault("REDIS_OM_URL", settings.redis_om_url)
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
@@ -17,7 +24,22 @@ async def lifespan(app: FastAPI):
     redis_client = get_redis()
     redis_client.ping()
     app.state.redis = redis_client
+
+    stop_event = threading.Event()
+    consumer_thread = threading.Thread(
+        target=run_consumer,
+        args=(stop_event,),
+        name="inventory-failed-consumer",
+        daemon=True,
+    )
+    consumer_thread.start()
+    app.state.consumer_stop_event = stop_event
+    app.state.consumer_thread = consumer_thread
+
     yield
+
+    stop_event.set()
+    consumer_thread.join(timeout=5)
     redis_client.close()
 
 
