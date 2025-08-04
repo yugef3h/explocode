@@ -31,6 +31,13 @@ def _ensure_consumer_group(redis) -> None:
 
 def _refund_user(user_id: int, amount: float) -> None:
     url = f"{settings.user_service_url.rstrip('/')}/users/{user_id}/refund"
+    # trust_env=False 是告诉 httpx：不要读取系统/环境变量里的代理配置（如 HTTP_PROXY、HTTPS_PROXY、ALL_PROXY 等）。
+    # 本地联调时我们遇到过这个问题：
+    # curl http://127.0.0.1:8001/users/1 → 200 正常
+    # httpx.get("http://127.0.0.1:8001/users/1") → 502 空响应
+    # 原因是 macOS / 终端里往往配了代理（Clash、Surge 等），httpx 默认 trust_env=True，会把 127.0.0.1 的请求也走代理，代理处理不了本地服务就返回 502。
+    # 加上 trust_env=False 后，httpx 直连目标地址，绕开代理。
+    # 生产环境如果必须走公司代理访问外网，就不能全局关掉；可以只对内网 URL 禁用代理，或单独配置 proxies={}。
     with httpx.Client(timeout=5.0, trust_env=False) as client:
         response = client.post(url, json={"amount": amount})
     if response.status_code >= 400:
