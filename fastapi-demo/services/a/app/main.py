@@ -15,14 +15,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+
+os.environ["REDIS_OM_URL"] = settings.redis_om_url
+
 from app.consumer import run_consumer
 from app.models import Product
 from app.redis_client import get_redis
 from app.routers import hello
 from app.schemas import ProductCreate
-
-os.environ.setdefault("REDIS_OM_URL", settings.redis_om_url)
-
 from redis_om import NotFoundError
 
 logging.basicConfig(level=logging.INFO)
