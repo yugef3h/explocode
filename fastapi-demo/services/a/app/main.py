@@ -19,10 +19,12 @@ from app.config import settings
 os.environ["REDIS_OM_URL"] = settings.redis_om_url
 
 from app.consumer import run_consumer
+from app.consumer_state import ConsumerState
+from app.inventory import InsufficientStockError, release_stock, reserve_stock
 from app.models import Product
 from app.redis_client import get_redis
 from app.routers import hello
-from app.schemas import ProductCreate
+from app.schemas import ProductCreate, QuantityPayload
 from redis_om import NotFoundError
 
 logging.basicConfig(level=logging.INFO)
@@ -35,14 +37,16 @@ async def lifespan(app: FastAPI):
     app.state.redis = redis_client
 
     stop_event = threading.Event()
+    consumer_state = ConsumerState(name="order-completed-consumer")
     consumer_thread = threading.Thread(
         target=run_consumer,
-        args=(stop_event,),
+        args=(stop_event, consumer_state),
         name="order-completed-consumer",
         daemon=True,
     )
     consumer_thread.start()
     app.state.consumer_stop_event = stop_event
+    app.state.consumer_state = consumer_state
     app.state.consumer_thread = consumer_thread
 
     yield
@@ -80,9 +84,19 @@ def format(pk: str):
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    app.state.redis.ping()
-    return {"status": "ok", "service": "a-service", "redis": "ok"}
+def health(request: Request) -> JSONResponse:
+    request.app.state.redis.ping()
+    consumer_ok = request.app.state.consumer_state.is_healthy()
+    body = {
+        "status": "ok" if consumer_ok else "degraded",
+        "service": "a-service",
+        "redis": "ok",
+        "consumers": {
+            "order_completed": "ok" if consumer_ok else "unhealthy",
+        },
+    }
+    status_code = 200 if consumer_ok else 503
+    return JSONResponse(status_code=status_code, content=body)
 
 
 @app.post("/products")
@@ -93,6 +107,26 @@ def create(payload: ProductCreate) -> Product:
 @app.get("/products/{pk}")
 def get(pk: str) -> Product:
     return Product.get(pk)
+
+
+@app.post("/products/{pk}/reserve")
+def reserve(pk: str, payload: QuantityPayload) -> dict:
+    try:
+        remaining = reserve_stock(pk, payload.quantity)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Product not found")
+    except InsufficientStockError:
+        raise HTTPException(status_code=409, detail="Insufficient product stock")
+    return {"id": pk, "quantity": remaining}
+
+
+@app.post("/products/{pk}/release")
+def release(pk: str, payload: QuantityPayload) -> dict:
+    try:
+        remaining = release_stock(pk, payload.quantity)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"id": pk, "quantity": remaining}
 
 
 @app.delete("/products/{pk}")
