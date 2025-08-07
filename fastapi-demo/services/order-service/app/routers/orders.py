@@ -1,27 +1,13 @@
-import asyncio
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
-
-from app.clients.product_client import get_product
-from app.clients.user_client import charge_user, get_user
-from app.models import ORDER_STATUS_COMPLETED, Order
-from app.redis_client import get_redis
+from app.clients.product_client import get_product, release_stock, reserve_stock
+from app.clients.user_client import charge_user, get_user, refund_user
+from app.complete_scheduler import schedule_order_complete
+from app.models import Order
 from app.schemas import OrderCreate, OrderOut, OrderUpdate
 from redis_om import NotFoundError
 
 router = APIRouter(prefix="/orders", tags=["orders"])
-
-
-async def _complete_order_later(order_pk: str) -> None:
-    await asyncio.sleep(2)
-    try:
-        order = Order.get(order_pk)
-    except NotFoundError:
-        return
-    order.status = ORDER_STATUS_COMPLETED
-    order.save()
-    fields = {key: str(value) for key, value in order.model_dump().items() if value is not None}
-    get_redis().xadd("order_completed", fields)
 
 
 def _to_out(order: Order) -> OrderOut:
@@ -56,31 +42,38 @@ def get_order(pk: str) -> OrderOut:
 
 
 @router.post("", response_model=OrderOut, status_code=201)
-async def create_order(
-    payload: OrderCreate,
-    background_tasks: BackgroundTasks,
-) -> OrderOut:
+async def create_order(payload: OrderCreate) -> OrderOut:
     await get_user(payload.user_id)
     product = await get_product(payload.product_id)
-
-    if product["quantity"] < payload.quantity:
-        raise HTTPException(status_code=400, detail="Insufficient product stock")
-
     amount = product["price"] * payload.quantity
-    await charge_user(payload.user_id, amount)
 
-    order = Order(
-        pk=None,
-        user_id=payload.user_id,
-        product_id=product["id"],
-        item=product["name"],
-        amount=amount,
-        quantity=payload.quantity,
-    ).save()
+    await reserve_stock(product["id"], payload.quantity)
+    try:
+        await charge_user(payload.user_id, amount)
+    except HTTPException:
+        await release_stock(product["id"], payload.quantity)
+        raise
+
+    try:
+        order = Order(
+            pk=None,
+            user_id=payload.user_id,
+            product_id=product["id"],
+            item=product["name"],
+            amount=amount,
+            quantity=payload.quantity,
+        ).save()
+    except Exception as exc:
+        await release_stock(product["id"], payload.quantity)
+        try:
+            await refund_user(payload.user_id, amount)
+        except HTTPException:
+            pass
+        raise HTTPException(status_code=500, detail="Failed to create order") from exc
     if order.pk is None:
         raise HTTPException(status_code=500, detail="Order missing primary key")
-    # 异步任务：2秒后完成订单，先返回 _to_out
-    background_tasks.add_task(_complete_order_later, order.pk)
+
+    schedule_order_complete(order.pk)
     return _to_out(order)
 
 
