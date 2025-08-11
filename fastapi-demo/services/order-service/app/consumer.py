@@ -7,6 +7,8 @@ from redis.exceptions import ResponseError
 from redis_om import NotFoundError
 
 from app.config import settings
+from app.consumer_state import ConsumerState
+from app.idempotency import confirm, is_done, release_claim, try_claim
 from app.models import ORDER_STATUS_REFUNDED, Order
 from app.redis_client import get_redis
 
@@ -15,6 +17,7 @@ logger = logging.getLogger(__name__)
 STREAM_KEY = "inventory_failed"
 GROUP_NAME = "order-service"
 CONSUMER_NAME = "refund-worker"
+REFUND_KEY_PREFIX = "order_refunded:"
 
 
 def _decode(value):
@@ -31,13 +34,6 @@ def _ensure_consumer_group(redis) -> None:
 
 def _refund_user(user_id: int, amount: float) -> None:
     url = f"{settings.user_service_url.rstrip('/')}/users/{user_id}/refund"
-    # trust_env=False 是告诉 httpx：不要读取系统/环境变量里的代理配置（如 HTTP_PROXY、HTTPS_PROXY、ALL_PROXY 等）。
-    # 本地联调时我们遇到过这个问题：
-    # curl http://127.0.0.1:8001/users/1 → 200 正常
-    # httpx.get("http://127.0.0.1:8001/users/1") → 502 空响应
-    # 原因是 macOS / 终端里往往配了代理（Clash、Surge 等），httpx 默认 trust_env=True，会把 127.0.0.1 的请求也走代理，代理处理不了本地服务就返回 502。
-    # 加上 trust_env=False 后，httpx 直连目标地址，绕开代理。
-    # 生产环境如果必须走公司代理访问外网，就不能全局关掉；可以只对内网 URL 禁用代理，或单独配置 proxies={}。
     with httpx.Client(timeout=5.0, trust_env=False) as client:
         response = client.post(url, json={"amount": amount})
     if response.status_code >= 400:
@@ -46,15 +42,32 @@ def _refund_user(user_id: int, amount: float) -> None:
         )
 
 
-def _handle_message(fields: dict) -> bool:
+def _release_stock(product_id: str, quantity: int) -> None:
+    url = f"{settings.a_service_url.rstrip('/')}/products/{product_id}/release"
+    with httpx.Client(timeout=5.0, trust_env=False) as client:
+        response = client.post(url, json={"quantity": quantity})
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"release stock failed for product {product_id}: HTTP {response.status_code}"
+        )
+
+
+def _handle_message(fields: dict, redis) -> bool:
     decoded = {_decode(k): _decode(v) for k, v in fields.items()}
     order_id = decoded.get("order_id")
     user_id = decoded.get("user_id")
     amount_raw = decoded.get("amount")
+    product_id = decoded.get("product_id")
+    quantity_raw = decoded.get("quantity")
     reason = decoded.get("reason", "unknown")
 
     if not order_id or not user_id or not amount_raw:
         logger.warning("skip invalid inventory_failed message: %s", decoded)
+        return True
+
+    idempotency_key = f"{REFUND_KEY_PREFIX}{order_id}"
+    if is_done(redis, idempotency_key):
+        logger.info("order %s already refunded (idempotent), skip", order_id)
         return True
 
     amount = float(amount_raw)
@@ -67,32 +80,43 @@ def _handle_message(fields: dict) -> bool:
         return True
 
     if order.status == ORDER_STATUS_REFUNDED:
-        logger.info("order %s already refunded, skip", order_id)
+        confirm(redis, idempotency_key)
+        return True
+
+    if not try_claim(redis, idempotency_key):
+        logger.info("order %s refund already in progress, skip", order_id)
         return True
 
     try:
         _refund_user(user_id_int, amount)
+        order.status = ORDER_STATUS_REFUNDED
+        order.save()
+
+        if product_id and quantity_raw:
+            _release_stock(product_id, int(quantity_raw))
+
+        confirm(redis, idempotency_key)
+        logger.info(
+            "refunded order %s user=%s amount=%s reason=%s",
+            order_id,
+            user_id_int,
+            amount,
+            reason,
+        )
+        return True
     except Exception:
-        logger.exception("refund call failed for order %s", order_id)
+        logger.exception("refund failed for order %s", order_id)
+        release_claim(redis, idempotency_key)
         return False
 
-    order.status = ORDER_STATUS_REFUNDED
-    order.save()
-    logger.info(
-        "refunded order %s user=%s amount=%s reason=%s",
-        order_id,
-        user_id_int,
-        amount,
-        reason,
-    )
-    return True
 
-
-def run_consumer(stop_event: Event) -> None:
+def run_consumer(stop_event: Event, state: ConsumerState) -> None:
     redis = get_redis()
     _ensure_consumer_group(redis)
+    state.thread_alive = True
 
     while not stop_event.is_set():
+        state.heartbeat()
         try:
             messages = redis.xreadgroup(
                 GROUP_NAME,
@@ -106,7 +130,7 @@ def run_consumer(stop_event: Event) -> None:
 
             for _stream, entries in messages:
                 for message_id, fields in entries:
-                    if _handle_message(fields):
+                    if _handle_message(fields, redis):
                         redis.xack(STREAM_KEY, GROUP_NAME, message_id)
         except Exception:
             logger.exception("refund consumer loop error")
