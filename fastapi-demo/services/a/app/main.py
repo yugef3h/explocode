@@ -20,11 +20,11 @@ os.environ["REDIS_OM_URL"] = settings.redis_om_url
 
 from app.consumer import run_consumer
 from app.consumer_state import ConsumerState
-from app.inventory import InsufficientStockError, release_stock, reserve_stock
+from app.grpc_server import run_grpc_server
 from app.models import Product
 from app.redis_client import get_redis
 from app.routers import hello
-from app.schemas import ProductCreate, QuantityPayload
+from app.schemas import ProductCreate
 from redis_om import NotFoundError
 
 logging.basicConfig(level=logging.INFO)
@@ -44,15 +44,24 @@ async def lifespan(app: FastAPI):
         name="order-completed-consumer",
         daemon=True,
     )
+    grpc_thread = threading.Thread(
+        target=run_grpc_server,
+        args=(stop_event,),
+        name="product-grpc-server",
+        daemon=True,
+    )
     consumer_thread.start()
+    grpc_thread.start()
     app.state.consumer_stop_event = stop_event
     app.state.consumer_state = consumer_state
     app.state.consumer_thread = consumer_thread
+    app.state.grpc_thread = grpc_thread
 
     yield
 
     stop_event.set()
     consumer_thread.join(timeout=5)
+    grpc_thread.join(timeout=5)
     redis_client.close()
 
 
@@ -107,26 +116,6 @@ def create(payload: ProductCreate) -> Product:
 @app.get("/products/{pk}")
 def get(pk: str) -> Product:
     return Product.get(pk)
-
-
-@app.post("/products/{pk}/reserve")
-def reserve(pk: str, payload: QuantityPayload) -> dict:
-    try:
-        remaining = reserve_stock(pk, payload.quantity)
-    except NotFoundError:
-        raise HTTPException(status_code=404, detail="Product not found")
-    except InsufficientStockError:
-        raise HTTPException(status_code=409, detail="Insufficient product stock")
-    return {"id": pk, "quantity": remaining}
-
-
-@app.post("/products/{pk}/release")
-def release(pk: str, payload: QuantityPayload) -> dict:
-    try:
-        remaining = release_stock(pk, payload.quantity)
-    except NotFoundError:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return {"id": pk, "quantity": remaining}
 
 
 @app.delete("/products/{pk}")
