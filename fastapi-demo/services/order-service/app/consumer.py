@@ -2,11 +2,11 @@ import logging
 import time
 from threading import Event
 
-import httpx
 from redis.exceptions import ResponseError
 from redis_om import NotFoundError
 
-from app.config import settings
+from app.clients.product_client import release_stock_sync
+from app.clients.user_client import refund_user_sync
 from app.consumer_state import ConsumerState
 from app.idempotency import confirm, is_done, release_claim, try_claim
 from app.models import ORDER_STATUS_REFUNDED, Order
@@ -33,23 +33,11 @@ def _ensure_consumer_group(redis) -> None:
 
 
 def _refund_user(user_id: int, amount: float) -> None:
-    url = f"{settings.user_service_url.rstrip('/')}/users/{user_id}/refund"
-    with httpx.Client(timeout=5.0, trust_env=False) as client:
-        response = client.post(url, json={"amount": amount})
-    if response.status_code >= 400:
-        raise RuntimeError(
-            f"refund failed for user {user_id}: HTTP {response.status_code}"
-        )
+    refund_user_sync(user_id, amount)
 
 
 def _release_stock(product_id: str, quantity: int) -> None:
-    url = f"{settings.a_service_url.rstrip('/')}/products/{product_id}/release"
-    with httpx.Client(timeout=5.0, trust_env=False) as client:
-        response = client.post(url, json={"quantity": quantity})
-    if response.status_code >= 400:
-        raise RuntimeError(
-            f"release stock failed for product {product_id}: HTTP {response.status_code}"
-        )
+    release_stock_sync(product_id, quantity)
 
 
 def _handle_message(fields: dict, redis) -> bool:
