@@ -2,11 +2,13 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY services/user-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
+COPY gen/python ./gen/python
+COPY services/user-service/app ./app
 
-ENV USER_SERVICE_PORT=8001
+ENV PYTHONPATH=/app/gen/python
+ENV GRPC_PORT=50051
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${USER_SERVICE_PORT}"]
+CMD ["python", "-m", "app.main"]
