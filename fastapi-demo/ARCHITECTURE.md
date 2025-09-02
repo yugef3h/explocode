@@ -1,6 +1,6 @@
 # fastapi-demo 架构与幂等说明
 
-> **服务间通信已迁移为 gRPC**，详见 [GRPC.md](./GRPC.md)。order-service 对外仍提供 REST `:8002`。
+> **服务间通信已迁移为 gRPC**，详见 [GRPC.md](./GRPC.md)。**服务发现与端口**，详见 [SERVICE_DISCOVERY.md](./SERVICE_DISCOVERY.md)。order-service 对外仍提供 REST `:8002`。
 
 重读本文档可快速回顾：下单链路、库存预占、退款补偿、Redis Stream、幂等键设计。
 

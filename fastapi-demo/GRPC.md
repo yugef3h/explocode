@@ -1,6 +1,6 @@
 # gRPC 迁移说明
 
-服务间同步调用已从 **HTTP/httpx** 改为 **gRPC + protobuf**。对外 REST 仍保留在 order-service（8002）和 a-service 管理接口（8003）。
+服务间同步调用已从 **HTTP/httpx** 改为 **gRPC + protobuf**。对外 REST 仍保留在 order-service（8002）和 a-service 管理接口（8003）。服务如何被找到（本地 / Compose / K8s），见 [SERVICE_DISCOVERY.md](./SERVICE_DISCOVERY.md)。
 
 ## 端口
 
