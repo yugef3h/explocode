@@ -35,3 +35,4 @@
 - Build step 33: incremental manus-agent commit.
 - Build step 34: incremental manus-agent commit.
 - Build step 35: incremental manus-agent commit.
+- Build step 36: incremental manus-agent commit.
