@@ -27,3 +27,4 @@
 - Build step 25: incremental manus-agent commit.
 - Build step 26: incremental manus-agent commit.
 - Build step 27: incremental manus-agent commit.
+- Build step 28: incremental manus-agent commit.
