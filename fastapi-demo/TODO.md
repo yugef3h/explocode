@@ -36,18 +36,11 @@
 
 ---
 
-### 3. 两阶段校验的时间窗（并发超卖）
+### 3. 两阶段校验的时间窗（并发超卖） — 已缓解
 
-**位置：** `services/order-service/app/routers/orders.py` — 创建时 `GET /products` 读 quantity，2s 后才扣。
+**方案：** 下单时调用 a-service `POST /products/{id}/reserve`，Redis Lua 原子扣减 `quantity`；退款时 `POST /products/{id}/release` 归还库存。`order_completed` consumer 不再二次扣库存。
 
-多个订单并发时可能同时读到 `quantity=5`，各自下单 `quantity=3`，最终应扣 6 但只有 5。
-
-**根因：** 读-改-写没有原子性，也没有预占库存。
-
-**方向：**
-
-- 下单时用 Redis `DECRBY` / Lua 脚本原子预占
-- 或下单直接 `XADD order_created`，由 a-service 串行处理库存
+**剩余：** charge 成功但 `Order.save` 失败时依赖 rollback；高并发下注意 Redis 连接池上限。
 
 ---
 
@@ -69,36 +62,22 @@
 
 ---
 
-### 5. BackgroundTasks 不可靠
+### 5. BackgroundTasks 不可靠 — 已缓解
 
-**位置：** `services/order-service/app/routers/orders.py` — `_complete_order_later`。
-
-进程内后台任务，**服务重启后任务丢失**：订单可能永远停在 `pending`，不会发 stream，也不会扣库存。
-
-**方向：** Celery / ARQ / 独立 worker，或 Redis 延迟队列。
+**方案：** 下单后 `ZADD order_complete_schedule`，独立 scheduler 线程轮询到期订单并 `XADD order_completed`。任务持久化在 Redis，重启后可继续处理。
 
 ---
 
-### 6. 无幂等保护
+### 6. 无幂等保护 — 已缓解
 
-同一 `order_id` 若被重复 `XADD`（重试、bug），consumer 可能**重复扣库存**。
-
-**方向：** Redis `SETNX order_deducted:{order_id}` 做幂等键，已处理则 skip。
-
----
-
-### 7. 商品不存在
-
-**位置：** `services/a/app/consumer.py` — `Product.get` 捕获 `NotFoundError` 后只 log。
-
-与缺货同类：订单 reference 的 product 已删，用户同样「付了钱没货」，需走补偿流。
+**方案：** Redis `SETNX` 幂等键：`order_fulfilled:`（a-service）、`order_refunded:` / `order_complete_published:`（order-service）。重复消息 skip；处理失败 `DEL` 键允许重试。
 
 ---
 
 ### 8. 其他工程问题
 
 - **httpx 本地 502：** 已在 order-service client 加 `trust_env=False`。
-- **consumer 是 daemon 线程：** 挂了无告警，`/health` 仍返回 ok。
+- **consumer 是 daemon 线程：** `/health` 检查 consumer heartbeat，异常时返回 503。
 - **stream 字段全是 str：** `order.model_dump()` 转 string 后 `XADD`，consumer 需自行 cast；字段缺失时静默 skip。
 
 ---
@@ -133,8 +112,8 @@ order-service 侧需要：
 
 - [x] **P0** — `inventory_failed` stream：a-service 缺货/无商品时发布，order-service consumer 退钱改状态
 - [x] **P0** — 修正 XACK 逻辑：只有「处理完毕（成功或已发补偿事件）」才 ack
-- [ ] **P1** — 下单原子预占库存，消除并发超卖
+- [x] **P1** — 下单原子预占库存，消除并发超卖
 - [x] **P1** — 订单状态补 `refunded` / `fulfilling`，完善状态机（已加 `refunded`，`fulfilling` 待做）
-- [ ] **P2** — 幂等键 `order_deducted:{order_id}`
-- [ ] **P2** — BackgroundTasks 换持久化队列
-- [ ] **P2** — consumer 健康检查；httpx `trust_env=False`
+- [x] **P2** — 幂等键 `order_fulfilled:{order_id}` / `order_refunded:{order_id}` / `order_complete_published:{order_id}`
+- [x] **P2** — BackgroundTasks 换 Redis ZSET 延迟队列（`order_complete_schedule`）
+- [x] **P2** — consumer 健康检查（/health 503）；httpx `trust_env=False`
