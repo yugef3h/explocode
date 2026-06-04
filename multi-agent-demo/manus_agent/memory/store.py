@@ -56,7 +56,10 @@ class MemoryStore:
                 "INSERT INTO memories (run_id, agent, phase, payload, created_at) VALUES (?,?,?,?,?)",
                 (run_id, agent, phase, json.dumps(payload), now),
             )
-            return int(cur.lastrowid)
+            row_id = cur.lastrowid
+            if row_id is None:
+                raise RuntimeError("INSERT into memories did not return row id")
+            return int(row_id)
 
     def list_run(self, run_id: str) -> list[MemoryRecord]:
         with self._connect() as conn:
