@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=_BASE_DIR / ".env", extra="ignore")
 
     order_service_port: int = 8002
-    user_service_url: str = "http://127.0.0.1:8001"
-    a_service_url: str = "http://127.0.0.1:8003"
+    user_service_grpc_target: str = "127.0.0.1:50051"
+    a_service_grpc_target: str = "127.0.0.1:50053"
     redis_om_url: str = "redis://localhost:6379"
 
 

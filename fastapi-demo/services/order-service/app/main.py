@@ -6,15 +6,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.complete_scheduler import run_scheduler
 from app.config import settings
+
+os.environ["REDIS_OM_URL"] = settings.redis_om_url
+
+from app.complete_scheduler import run_scheduler
 from app.consumer import run_consumer
 from app.consumer_state import ConsumerState
 from app.redis_client import get_redis
 from app.routers import orders
-
-os.environ["REDIS_OM_URL"] = settings.redis_om_url
-
 from redis_om import NotFoundError
 
 logging.basicConfig(level=logging.INFO)

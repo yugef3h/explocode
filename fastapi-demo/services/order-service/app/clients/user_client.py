@@ -1,74 +1,65 @@
-import httpx
-from fastapi import HTTPException
+import sys
+from pathlib import Path
 
+import grpc
+
+from app.clients.grpc_errors import map_grpc_error
 from app.config import settings
 
-_HTTPX_KWARGS = {"timeout": 5.0, "trust_env": False}
+_DEMO_ROOT = Path(__file__).resolve().parents[4]
+if str(_DEMO_ROOT / "gen" / "python") not in sys.path:
+    sys.path.insert(0, str(_DEMO_ROOT / "gen" / "python"))
+
+from user.v1 import user_pb2, user_pb2_grpc
+
+
+def _user_to_dict(user: user_pb2.User) -> dict:
+    return {"id": user.id, "name": user.name, "balance": user.balance}
 
 
 async def get_user(user_id: int) -> dict:
-    url = f"{settings.user_service_url.rstrip('/')}/users/{user_id}"
     try:
-        async with httpx.AsyncClient(**_HTTPX_KWARGS) as client:
-            response = await client.get(url)
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"User service unavailable: {exc}",
-        ) from exc
-
-    if response.status_code == 404:
-        raise HTTPException(status_code=400, detail="User not found")
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=f"User service error: {response.status_code}",
-        )
-
-    return response.json()
+        async with grpc.aio.insecure_channel(settings.user_service_grpc_target) as channel:
+            stub = user_pb2_grpc.UserServiceStub(channel)
+            response = await stub.GetUser(
+                user_pb2.GetUserRequest(user_id=user_id),
+                timeout=5,
+            )
+    except grpc.RpcError as exc:
+        raise map_grpc_error(exc, service_name="User service") from exc
+    return _user_to_dict(response)
 
 
 async def charge_user(user_id: int, amount: float) -> dict:
-    url = f"{settings.user_service_url.rstrip('/')}/users/{user_id}/charge"
     try:
-        async with httpx.AsyncClient(**_HTTPX_KWARGS) as client:
-            response = await client.post(url, json={"amount": amount})
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"User service unavailable: {exc}",
-        ) from exc
-
-    if response.status_code == 404:
-        raise HTTPException(status_code=400, detail="User not found")
-    if response.status_code == 400:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=f"User service error: {response.status_code}",
-        )
-
-    return response.json()
+        async with grpc.aio.insecure_channel(settings.user_service_grpc_target) as channel:
+            stub = user_pb2_grpc.UserServiceStub(channel)
+            response = await stub.ChargeUser(
+                user_pb2.ChargeUserRequest(user_id=user_id, amount=amount),
+                timeout=5,
+            )
+    except grpc.RpcError as exc:
+        raise map_grpc_error(exc, service_name="User service") from exc
+    return _user_to_dict(response)
 
 
 async def refund_user(user_id: int, amount: float) -> dict:
-    url = f"{settings.user_service_url.rstrip('/')}/users/{user_id}/refund"
     try:
-        async with httpx.AsyncClient(**_HTTPX_KWARGS) as client:
-            response = await client.post(url, json={"amount": amount})
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"User service unavailable: {exc}",
-        ) from exc
+        async with grpc.aio.insecure_channel(settings.user_service_grpc_target) as channel:
+            stub = user_pb2_grpc.UserServiceStub(channel)
+            response = await stub.RefundUser(
+                user_pb2.RefundUserRequest(user_id=user_id, amount=amount),
+                timeout=5,
+            )
+    except grpc.RpcError as exc:
+        raise map_grpc_error(exc, service_name="User service") from exc
+    return _user_to_dict(response)
 
-    if response.status_code == 404:
-        raise HTTPException(status_code=400, detail="User not found")
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=f"User service error: {response.status_code}",
+
+def refund_user_sync(user_id: int, amount: float) -> None:
+    with grpc.insecure_channel(settings.user_service_grpc_target) as channel:
+        stub = user_pb2_grpc.UserServiceStub(channel)
+        stub.RefundUser(
+            user_pb2.RefundUserRequest(user_id=user_id, amount=amount),
+            timeout=5,
         )
-
-    return response.json()

@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package user.v1;
+
+option py_generic_services = true;
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc ChargeUser(ChargeUserRequest) returns (User);
+  rpc RefundUser(RefundUserRequest) returns (User);
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message User {
+  int32 id = 1;
+  string name = 2;
+  double balance = 3;
+}
+
+message GetUserRequest {
+  int32 user_id = 1;
+}
+
+message ListUsersRequest {}
+
+message ListUsersResponse {
+  repeated User users = 1;
+}
+
+message CreateUserRequest {
+  string name = 1;
+  double balance = 2;
+}
+
+message ChargeUserRequest {
+  int32 user_id = 1;
+  double amount = 2;
+}
+
+message RefundUserRequest {
+  int32 user_id = 1;
+  double amount = 2;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  string service = 2;
+}

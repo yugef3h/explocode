@@ -1,4 +1,6 @@
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 pydantic-settings>=2.6.0
+grpcio>=1.60.0
+protobuf>=4.25.0
 redis-om>=0.3.5

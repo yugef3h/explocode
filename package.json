@@ -9,10 +9,11 @@
   "scripts": {
     "koa": "node koa-demo/app.js",
     "cd": "node scripts/git-commit-date.mjs",
-    "fastapi:install": "fastapi-demo/.venv/bin/pip install -r fastapi-demo/services/user-service/requirements.txt && fastapi-demo/.venv/bin/pip install -r fastapi-demo/services/order-service/requirements.txt && fastapi-demo/.venv/bin/pip install -r fastapi-demo/services/a/requirements.txt",
-    "fastapi:a": "fastapi-demo/.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8003 --app-dir fastapi-demo/services/a",
-    "fastapi:user": "fastapi-demo/.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8001 --app-dir fastapi-demo/services/user-service",
-    "fastapi:order": "USER_SERVICE_URL=http://127.0.0.1:8001 fastapi-demo/.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8002 --app-dir fastapi-demo/services/order-service",
+    "fastapi:install": "fastapi-demo/.venv/bin/pip install -r fastapi-demo/services/user-service/requirements.txt && fastapi-demo/.venv/bin/pip install -r fastapi-demo/services/order-service/requirements.txt && fastapi-demo/.venv/bin/pip install -r fastapi-demo/services/a/requirements.txt && fastapi-demo/.venv/bin/pip install grpcio-tools",
+    "fastapi:proto": "bash fastapi-demo/scripts/generate_proto.sh",
+    "fastapi:a": "cd fastapi-demo/services/a && PYTHONPATH=../../gen/python ../../.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8003",
+    "fastapi:user": "cd fastapi-demo/services/user-service && PYTHONPATH=../../gen/python ../../.venv/bin/python -m app.main",
+    "fastapi:order": "cd fastapi-demo/services/order-service && PYTHONPATH=../../gen/python USER_SERVICE_GRPC_TARGET=127.0.0.1:50051 A_SERVICE_GRPC_TARGET=127.0.0.1:50053 ../../.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8002",
     "fastapi:up": "docker compose --project-directory fastapi-demo -f fastapi-demo/docker-compose.yml up --build"
   },
   "keywords": [],

@@ -1,80 +1,75 @@
-import httpx
-from fastapi import HTTPException
+import sys
+from pathlib import Path
 
+import grpc
+
+from app.clients.grpc_errors import map_grpc_error
 from app.config import settings
 
-_HTTPX_KWARGS = {"timeout": 5.0, "trust_env": False}
+_DEMO_ROOT = Path(__file__).resolve().parents[4]
+if str(_DEMO_ROOT / "gen" / "python") not in sys.path:
+    sys.path.insert(0, str(_DEMO_ROOT / "gen" / "python"))
+
+from product.v1 import product_pb2, product_pb2_grpc
 
 
 async def get_product(product_id: str) -> dict:
-    url = f"{settings.a_service_url.rstrip('/')}/products/{product_id}"
     try:
-        async with httpx.AsyncClient(**_HTTPX_KWARGS) as client:
-            response = await client.get(url)
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"A service unavailable: {exc}",
-        ) from exc
-
-    if response.status_code == 404:
-        raise HTTPException(status_code=400, detail="Product not found")
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=f"A service error: {response.status_code}",
-        )
-
-    data = response.json()
+        async with grpc.aio.insecure_channel(settings.a_service_grpc_target) as channel:
+            stub = product_pb2_grpc.ProductServiceStub(channel)
+            response = await stub.GetProduct(
+                product_pb2.GetProductRequest(product_id=product_id),
+                timeout=5,
+            )
+    except grpc.RpcError as exc:
+        raise map_grpc_error(exc, service_name="A service") from exc
     return {
-        "id": data.get("id") or data.get("pk"),
-        "name": data["name"],
-        "price": data["price"],
-        "quantity": data["quantity"],
+        "id": response.id,
+        "name": response.name,
+        "price": response.price,
+        "quantity": response.quantity,
     }
 
 
 async def reserve_stock(product_id: str, quantity: int) -> dict:
-    url = f"{settings.a_service_url.rstrip('/')}/products/{product_id}/reserve"
     try:
-        async with httpx.AsyncClient(**_HTTPX_KWARGS) as client:
-            response = await client.post(url, json={"quantity": quantity})
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"A service unavailable: {exc}",
-        ) from exc
-
-    if response.status_code == 404:
-        raise HTTPException(status_code=400, detail="Product not found")
-    if response.status_code == 409:
-        raise HTTPException(status_code=400, detail="Insufficient product stock")
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=f"A service error: {response.status_code}",
-        )
-
-    return response.json()
+        async with grpc.aio.insecure_channel(settings.a_service_grpc_target) as channel:
+            stub = product_pb2_grpc.ProductServiceStub(channel)
+            response = await stub.ReserveStock(
+                product_pb2.ReserveStockRequest(
+                    product_id=product_id,
+                    quantity=quantity,
+                ),
+                timeout=5,
+            )
+    except grpc.RpcError as exc:
+        raise map_grpc_error(exc, service_name="A service") from exc
+    return {"id": response.id, "quantity": response.quantity}
 
 
 async def release_stock(product_id: str, quantity: int) -> dict:
-    url = f"{settings.a_service_url.rstrip('/')}/products/{product_id}/release"
     try:
-        async with httpx.AsyncClient(**_HTTPX_KWARGS) as client:
-            response = await client.post(url, json={"quantity": quantity})
-    except httpx.RequestError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"A service unavailable: {exc}",
-        ) from exc
+        async with grpc.aio.insecure_channel(settings.a_service_grpc_target) as channel:
+            stub = product_pb2_grpc.ProductServiceStub(channel)
+            response = await stub.ReleaseStock(
+                product_pb2.ReleaseStockRequest(
+                    product_id=product_id,
+                    quantity=quantity,
+                ),
+                timeout=5,
+            )
+    except grpc.RpcError as exc:
+        raise map_grpc_error(exc, service_name="A service") from exc
+    return {"id": response.id, "quantity": response.quantity}
 
-    if response.status_code == 404:
-        raise HTTPException(status_code=400, detail="Product not found")
-    if response.status_code >= 400:
-        raise HTTPException(
-            status_code=502,
-            detail=f"A service error: {response.status_code}",
+
+def release_stock_sync(product_id: str, quantity: int) -> None:
+    with grpc.insecure_channel(settings.a_service_grpc_target) as channel:
+        stub = product_pb2_grpc.ProductServiceStub(channel)
+        stub.ReleaseStock(
+            product_pb2.ReleaseStockRequest(
+                product_id=product_id,
+                quantity=quantity,
+            ),
+            timeout=5,
         )
-
-    return response.json()
