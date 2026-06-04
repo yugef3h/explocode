@@ -3,7 +3,7 @@ import asyncio
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from app.clients.product_client import get_product
-from app.clients.user_client import get_user
+from app.clients.user_client import charge_user, get_user
 from app.models import ORDER_STATUS_COMPLETED, Order
 from app.redis_client import get_redis
 from app.schemas import OrderCreate, OrderOut, OrderUpdate
@@ -66,12 +66,15 @@ async def create_order(
     if product["quantity"] < payload.quantity:
         raise HTTPException(status_code=400, detail="Insufficient product stock")
 
+    amount = product["price"] * payload.quantity
+    await charge_user(payload.user_id, amount)
+
     order = Order(
         pk=None,
         user_id=payload.user_id,
         product_id=product["id"],
         item=product["name"],
-        amount=product["price"] * payload.quantity,
+        amount=amount,
         quantity=payload.quantity,
     ).save()
     if order.pk is None:
