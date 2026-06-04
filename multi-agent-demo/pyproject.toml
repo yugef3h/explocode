@@ -7,7 +7,7 @@ name = "manus-agent"
 version = "0.1.0"
 description = "Production-style multi-agent orchestration (Manus-like)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 license = { text = "MIT" }
 dependencies = [
     "langgraph>=0.2.0",
@@ -35,4 +35,4 @@ asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py39"
