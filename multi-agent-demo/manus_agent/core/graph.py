@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from langgraph.graph import END, StateGraph
 
@@ -82,4 +82,4 @@ def run_workflow(goal: str, settings: Settings | None = None) -> AgentState:
     artifacts = ArtifactStore(cfg.data_dir)
     if final.get("document"):
         artifacts.write_text(run_id, "report.md", final["document"])
-    return final
+    return cast(AgentState, final)
