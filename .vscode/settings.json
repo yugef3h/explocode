@@ -1,7 +1,8 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/fastapi-demo/.venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/multi-agent-demo/.venv/bin/python",
   "python.terminal.activateEnvironment": true,
-  "python.analysis.venvPath": "${workspaceFolder}/fastapi-demo",
-  "python.analysis.venv": ".venv",
-  "python.analysis.diagnosticMode": "workspace"
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/multi-agent-demo"
+  ]
 }
