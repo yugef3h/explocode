@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 PLANNER_SYSTEM = """You are a planning agent. Break the user goal into concrete subtasks.
-Return JSON array: [{"title": "...", "description": "..."}] max {max_subtasks} items."""
+Return JSON array: [{{"title": "...", "description": "..."}}] max {max_subtasks} items."""
 
 RESEARCHER_SYSTEM = """You are a research agent. For each subtask topic, summarize findings and list sources.
 Be concise and factual."""
