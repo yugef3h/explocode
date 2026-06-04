@@ -16,5 +16,10 @@ def get_chat_model(settings: Settings | None = None) -> BaseChatModel:
     if provider == "openai":
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(model=cfg.openai_model, api_key=cfg.openai_api_key)
+        if cfg.openai_api_key:
+            return ChatOpenAI(
+                model=cfg.openai_model,
+                api_key=cfg.openai_api_key,  # type: ignore[arg-type]
+            )
+        return ChatOpenAI(model=cfg.openai_model)
     raise ValueError(f"Unknown llm_provider: {cfg.llm_provider}")
