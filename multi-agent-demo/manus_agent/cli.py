@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -20,8 +21,8 @@ console = Console()
 def run_cmd(
     goal: str = typer.Argument(..., help="User goal / task description"),
     llm: str = typer.Option("mock", "--llm", help="mock | openai"),
-    output: Path | None = typer.Option(None, "--output", "-o", help="Save report path"),
-    data_dir: Path | None = typer.Option(None, "--data-dir", help="Runtime data directory"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Save report path"),
+    data_dir: Optional[Path] = typer.Option(None, "--data-dir", help="Runtime data directory"),
 ) -> None:
     settings = Settings(llm_provider=llm)
     if data_dir:
