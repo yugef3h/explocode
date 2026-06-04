@@ -1,6 +1,4 @@
 {
-  "venvPath": "fastapi-demo",
-  "venv": ".venv",
   "executionEnvironments": [
     {
       "root": "fastapi-demo/services/a",
