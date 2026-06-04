@@ -1,0 +1,8 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "include": ["manus_agent", "tests"],
+  "pythonVersion": "3.9",
+  "reportMissingImports": true,
+  "reportTypedDictNotRequiredAccess": false
+}
